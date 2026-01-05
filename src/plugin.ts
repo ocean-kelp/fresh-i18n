@@ -42,9 +42,16 @@ export interface FallbackConfig {
   applyOnDev?: boolean;
 }
 
+/**
+ * Configuration options for the i18n plugin.
+ * Extends the basic I18nOptions with additional features.
+ */
 export interface I18nOptions {
+  /** Array of supported language codes (e.g., ["en", "es", "ja"]) */
   languages: string[];
+  /** Default language code to use when no preference is detected */
   defaultLanguage: string;
+  /** Path to the directory containing locale folders */
   localesDir: string;
   /**
    * Custom function to determine if running in production.
@@ -128,6 +135,27 @@ function getPreferredLanguage(
   return defaultLanguage;
 }
 
+/**
+ * Creates the i18n middleware plugin for Fresh framework.
+ * Automatically detects locale from URL paths and Accept-Language headers,
+ * loads translations, and provides them through context state.
+ *
+ * @param options - Configuration options for the plugin
+ * @returns Fresh middleware function that adds translation functionality to context state
+ *
+ * @example
+ * ```typescript
+ * import { App } from "fresh";
+ * import { i18nPlugin } from "@xingshuu-denofresh/fresh-i18n-plugin";
+ *
+ * const app = new App();
+ * app.use(i18nPlugin({
+ *   languages: ["en", "es"],
+ *   defaultLanguage: "en",
+ *   localesDir: "./locales",
+ * }));
+ * ```
+ */
 export const i18nPlugin = (
   {
     languages,

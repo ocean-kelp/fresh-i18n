@@ -1,12 +1,25 @@
+/**
+ * Configuration options for the translate function.
+ * All properties are optional.
+ */
 export interface TranslationConfig {
+  /** Current locale code */
   locale?: string;
+  /** Default locale for fallback translations */
   defaultLocale?: string;
+  /** Set of translation keys that are using fallback values */
   fallbackKeys?: Set<string>;
+  /** Whether to show translation keys in production mode */
   showKeysInProd?: boolean;
+  /** Whether to show indicators on fallback translations */
   showFallbackIndicator?: boolean;
+  /** Custom function to format fallback indicators */
   fallbackIndicatorFormat?: (text: string, defaultLocale: string) => string;
+  /** Function to determine if indicator should be shown for specific text */
   shouldShowFallbackIndicator?: (text: string, locale: string) => boolean;
+  /** Apply fallback behavior in development mode */
   applyFallbackOnDev?: boolean;
+  /** Custom function to check if running in production */
   isProduction?: () => boolean;
 }
 

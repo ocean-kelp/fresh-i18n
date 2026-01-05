@@ -2,7 +2,16 @@
  * Searches for a "locales" directory using multiple strategies:
  * 1. Check common relative paths from current directory
  * 2. Move up the directory tree and check from there
+ *
  * @returns The absolute path to the locales directory if found, null otherwise
+ *
+ * @example
+ * ```typescript
+ * const localesPath = await findLocalesDirectory();
+ * if (localesPath) {
+ *   console.log("Found locales at:", localesPath);
+ * }
+ * ```
  */
 export async function findLocalesDirectory(): Promise<string | null> {
   let currentDir = Deno.cwd();
@@ -64,14 +73,24 @@ export async function findLocalesDirectory(): Promise<string | null> {
   }
 
   return null; // Not found
-} /**
+}
+
+/**
  * Gets the effective locales directory path, trying multiple strategies:
  * 1. Use the provided path if it exists
  * 2. Search recursively for a "locales" directory
- * @param preferredPath - The preferred path to try first
+ *
+ * @param preferredPath - The preferred path to try first (default: "./locales")
  * @returns The effective locales directory path, or null if none found
+ *
+ * @example
+ * ```typescript
+ * const localesDir = await getEffectiveLocalesDir("./app/locales");
+ * if (localesDir) {
+ *   // Load translations from localesDir
+ * }
+ * ```
  */
-
 export async function getEffectiveLocalesDir(
   preferredPath: string = "./locales",
 ): Promise<string | null> {
