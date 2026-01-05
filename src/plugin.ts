@@ -140,6 +140,7 @@ function getPreferredLanguage(
  * Automatically detects locale from URL paths and Accept-Language headers,
  * loads translations, and provides them through context state.
  *
+ * @template State - Application state type that extends TranslationState
  * @param options - Configuration options for the plugin
  * @returns Fresh middleware function that adds translation functionality to context state
  *
@@ -156,7 +157,7 @@ function getPreferredLanguage(
  * }));
  * ```
  */
-export const i18nPlugin = (
+export const i18nPlugin = <State extends TranslationState = TranslationState>(
   {
     languages,
     defaultLanguage,
@@ -165,7 +166,7 @@ export const i18nPlugin = (
     fallback,
     showKeysInProd = false,
   }: I18nOptions,
-): Middleware<TranslationState> => {
+): Middleware<State> => {
   const fallbackConfig: FallbackConfig = {
     enabled: fallback?.enabled ?? false,
     showIndicator: fallback?.showIndicator ?? false,
