@@ -16,7 +16,7 @@ A powerful internationalization (i18n) plugin for [Fresh](https://fresh.deno.dev
 ## Installation
 
 ```bash
-deno add @yourorg/fresh-i18n
+deno add @xingshuu-denofresh/fresh-i18n-plugin
 ```
 
 Or add to your `deno.json`:
@@ -24,7 +24,7 @@ Or add to your `deno.json`:
 ```json
 {
   "imports": {
-    "@yourorg/fresh-i18n": "jsr:@yourorg/fresh-i18n@^1.0.0"
+    "@xingshuu-denofresh/fresh-i18n-plugin": "jsr:@xingshuu-denofresh/fresh-i18n-plugin@^1.0.0"
   }
 }
 ```
@@ -63,7 +63,7 @@ locales/
 
 ```typescript
 import { App } from "fresh";
-import { i18nPlugin } from "@yourorg/fresh-i18n";
+import { i18nPlugin } from "@xingshuu-denofresh/fresh-i18n-plugin";
 
 export const app = new App();
 
