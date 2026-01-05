@@ -1,0 +1,9 @@
+{
+  "welcome": "Bienvenido a Fresh i18n",
+  "description": "Un ejemplo simple de uso del plugin Fresh i18n",
+  "nav": {
+    "home": "Inicio",
+    "about": "Acerca de"
+  },
+  "footer": "Hecho con Fresh"
+}

@@ -1,0 +1,12 @@
+
+
+
+# node
+node_modules/
+
+# deno
+.DS_Store
+dist/
+deps/
+cache/
+*.lock
