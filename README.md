@@ -1,17 +1,17 @@
 # Fresh i18n Plugin
 
-A powerful internationalization (i18n) plugin for [Fresh](https://fresh.deno.dev) with automatic locale detection, fallback support, and comprehensive translation validation.
+A simple internationalization (i18n) plugin for [Fresh](https://fresh.deno.dev) with automatic locale detection and fallback support.
 
 ## Features
 
-- 🌍 **Automatic locale detection** from URL paths and Accept-Language headers
-- 🔄 **Fallback system** with configurable indicators for missing translations
-- ✅ **Development validation** with detailed error messages and warnings
-- 🎯 **Namespace support** for organizing translations by feature
-- 🚀 **Production optimized** with silent failures and optional key display
-- 📦 **TypeScript native** with full type safety
-- 🔍 **Smart locale discovery** - automatically finds your locales directory
-- 🎨 **Flexible configuration** - customize every aspect of translation behavior
+- Automatic locale detection from URL paths and Accept-Language headers
+- Fallback system with configurable indicators for missing translations
+- Development validation with detailed error messages and warnings
+- Namespace support for organizing translations by feature
+- Production optimized with silent failures and optional key display
+- TypeScript native with full type safety
+- Smart locale discovery - automatically finds your locales directory
+- Flexible configuration - customize every aspect of translation behavior
 
 ## Installation
 
@@ -179,51 +179,82 @@ Access as: `t("common.title")` or `t("common.nav.home")`
 
 ## Usage in Islands
 
-Islands (client-side components) need translation data passed as props:
+Islands (client-side components) cannot receive the `t()` function as a prop because Fresh 2.x cannot serialize functions. Instead, pass translation data and config:
 
-### In your route handler:
+### 1. Pass data from route handler:
 
 ```typescript
+import { define } from "@/utils.ts";
+import { PageProps } from "fresh";
+import type { State } from "@/utils.ts";
+
 export const handler = define.handlers({
   GET(ctx) {
     return {
       data: {
-        items: getItems(),
         translationData: ctx.state.translationData,
+        translationConfig: {
+          locale: ctx.state.locale,
+          defaultLocale: ctx.state.translationConfig?.defaultLocale,
+          fallbackKeys: Array.from(ctx.state.translationConfig?.fallbackKeys ?? []),
+        },
       },
     };
   },
 });
 ```
 
-### In your route component:
+### 2. Pass to island in route component:
 
 ```typescript
-export default function MyRoute({ data, state }: PageProps) {
+export default function MyRoute({ data, state }: PageProps<RouteData, State>) {
   return (
     <div>
       <h1>{state.t("common.title")}</h1>
-      <MyIsland translationData={data.translationData} />
+      <MyIsland
+        translationData={data.translationData}
+        translationConfig={data.translationConfig}
+      />
     </div>
   );
 }
 ```
 
-### In your island:
+### 3. Use in island:
 
 ```typescript
-import { translate } from "@yourorg/fresh-i18n";
+import { translate, TranslationConfig } from "@xingshuu-denofresh/fresh-i18n-plugin";
 
-export default function MyIsland({
-  translationData,
-}: {
+interface MyIslandProps {
   translationData: Record<string, unknown>;
-}) {
-  const t = translate(translationData);
+  translationConfig?: {
+    locale?: string;
+    defaultLocale?: string;
+    fallbackKeys?: string[];
+  };
+}
+
+export default function MyIsland({ translationData, translationConfig }: MyIslandProps) {
+  // Reconstruct config with Set for fallbackKeys
+  const config: TranslationConfig | undefined = translationConfig
+    ? {
+      ...translationConfig,
+      fallbackKeys: new Set(translationConfig.fallbackKeys ?? []),
+    }
+    : undefined;
+
+  const t = translate(translationData ?? {}, config);
 
   return <button>{t("common.submit")}</button>;
 }
 ```
+
+**Key points:**
+
+- Routes use `state.t` directly
+- Islands receive `translationData` and `translationConfig` as props
+- Island creates its own `t()` function using `translate()`
+- Never pass the `t()` function directly to islands
 
 ## Locale Detection
 
@@ -277,11 +308,13 @@ Creates the i18n middleware.
 - `localesDir` (string): Path to locales directory
 - `isProduction` (() => boolean): Custom production detection
 - `showKeysInProd` (boolean): Show keys in production (default: false)
-- `fallback` (FallbackConfig): Fallback configuration
+- `Use namespaces: Organize translations by feature (`common.json`,`auth.json`, etc.)
 
-### `translate(translationData, config?)`
-
-Creates a translation function.
+2. Keep keys descriptive: Use `common.nav.home` instead of `common.h1`
+3. Enable fallback in production: Prevent blank UI when translations are missing
+4. Test in development: Development mode shows all issues
+5. Use TypeScript: Get autocomplete and type safety for your state
+6. Routes use `state.t`, islands use `translate(translationData, config)`
 
 **Parameters:**
 

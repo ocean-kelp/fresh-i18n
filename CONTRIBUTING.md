@@ -89,4 +89,4 @@ Feature requests are welcome! Please:
 
 Be respectful and constructive in all interactions.
 
-Thank you for contributing! 🎉
+Thank you for contributing!
