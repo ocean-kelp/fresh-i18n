@@ -1,4 +1,4 @@
-# Fresh i18n Plugin
+# Fresh i18n
 
 A simple internationalization (i18n) plugin for [Fresh](https://fresh.deno.dev) with automatic locale detection and fallback support.
 
