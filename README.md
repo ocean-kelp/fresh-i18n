@@ -7,7 +7,9 @@ New name: @xiayun/fresh-i18n
 
 ## Features
 
-- **Nested folder structure** - Organize translations with unlimited nesting (NEW!)
+- **Client-side translation loading** - Zero-prop islands with route-based injection (NEW!)
+- **Nested folder structure** - Organize translations with unlimited nesting
+- **Namespaced translators** - Avoid repetitive prefixes with scoped translators
 - Automatic locale detection from URL paths and Accept-Language headers
 - Fallback system with configurable indicators for missing translations
 - Development validation with detailed error messages and warnings
@@ -16,7 +18,7 @@ New name: @xiayun/fresh-i18n
 - TypeScript native with full type safety
 - Smart locale discovery - automatically finds your locales directory
 - Flexible configuration - customize every aspect of translation behavior
-- **Kebab-case to camelCase** - File names auto-converted for clean code (NEW!)
+- **Kebab-case to camelCase** - File names auto-converted for clean code
 
 ## Installation
 
@@ -202,9 +204,234 @@ All translation keys use dot notation with the namespace prefix:
 
 Access as: `t("common.title")` or `t("common.nav.home")`
 
-## Usage in Islands
+## Client-Side Translation Loading (NEW!)
 
-Islands (client-side components) cannot receive the `t()` function as a prop because Fresh 2.x cannot serialize functions. Instead, pass translation data and config:
+Eliminate prop-drilling and reduce payload size by automatically injecting translations into islands based on route patterns.
+
+**📖 [Complete Migration Guide](./docs/MIGRATION_GUIDE.md)** - Step-by-step instructions for migrating existing apps with zero duplication.
+
+### Why Use This?
+
+**Before (prop-drilling approach):**
+
+- 50KB of translation props passed to every island
+- Verbose handler code for every route
+- Large serialized data in HTML
+
+**After (injection approach):**
+
+- 5KB payload (only matched namespaces)
+- Zero props needed in islands
+- Clean, simple code
+
+### Setup
+
+Configure which translations to load for specific routes:
+
+```typescript
+app.use(i18nPlugin({
+  languages: ["en", "es"],
+  defaultLanguage: "en",
+  localesDir: "./locales",
+
+  clientLoad: {
+    // Always load these namespaces on every page
+    always: ["common"],
+
+    // Route-specific namespaces (greedy wildcard matching)
+    routes: {
+      "/indicators/*": ["features.indicators"],
+      "/matrix/indicators/*": ["features.matrix.indicators"],
+      "/admin/*": ["features.admin", "features.users"],
+      "/goals/*": ["features.goals"],
+    },
+
+    // Behavior when no route matches
+    // "none" - No injection (best for gradual migration)
+    // "always-only" - Load only 'always' namespaces
+    // "all" - Load everything
+    fallback: "none",
+
+    // Optional: normalize trailing slashes before matching
+    ignoreTrailingSlash: true,
+
+    // Optional: warn in dev when multiple patterns match
+    warnOnOverlap: true,
+  },
+}));
+```
+
+### Route Pattern Rules
+
+- **Greedy wildcard:** `*` matches everything after the prefix
+  - `/indicators/*` matches `/indicators/123` ✅
+  - `/indicators/*` matches `/indicators/123/edit` ✅
+  - `/indicators/*` matches `/indicators/a/b/c` ✅
+- **Prefix must match exactly:**
+  - `/indicators/*` does NOT match `/matrix/indicators/123` ❌
+  - `/matrix/indicators/*` DOES match `/matrix/indicators/123` ✅
+- **Multiple matches:** If multiple patterns match, all namespaces are merged
+
+### IMPORTANT: Route Patterns ≠ File Structure
+
+⚠️ **Route patterns control WHEN to load, not HOW to organize files:**
+
+```typescript
+// Pattern /indicators/* loads features.indicators.*
+// But you should still have granular translation files:
+routes: {
+  "/indicators/*": ["features.indicators"],  // Loads ALL of these:
+}
+
+// Translation file structure (keep granular!):
+locales/en/features/indicators/
+├── list.json          // features.indicators.list.*
+├── edit.json          // features.indicators.edit.*
+├── form.json          // features.indicators.form.*
+├── validations.json   // features.indicators.validations.*
+└── tooltips.json      // features.indicators.tooltips.*
+```
+
+**Don't consolidate files just because you have a wildcard route!** Keep translations fragmented for maintainability, code splitting, and clarity.
+
+### Usage in Islands
+
+With `clientLoad` configured, islands can access translations without props:
+
+```typescript
+// Island component (zero props needed!)
+import { useLocale, useTranslation } from "@xiayun/fresh-i18n/client";
+
+export default function MyIsland() {
+  const t = useTranslation();
+  const locale = useLocale();
+
+  return (
+    <div>
+      <h1>{t("features.indicators.title")}</h1>
+      <button>{t("common.actions.save")}</button>
+      <p>Current language: {locale}</p>
+    </div>
+  );
+}
+```
+
+**No handler needed!** No props to pass! The plugin automatically injects matched translations into the HTML.
+
+### Hybrid Approach (Recommended)
+
+Support both patterns for maximum flexibility:
+
+```typescript
+// Route with clientLoad enabled - no props needed
+export default function IndicatorsRoute() {
+  return <IndicatorsList />; // Uses useTranslation() internally
+}
+
+// Route with custom translations - use props
+export const handler = define.handlers({
+  GET(ctx) {
+    return {
+      data: {
+        translationData: customTranslations,
+        translationConfig: { ... },
+      },
+    };
+  },
+});
+
+export default function SpecialRoute({ data }) {
+  return <SpecialIsland translations={data.translationData} />;
+}
+```
+
+### Fallback Modes
+
+**`fallback: "none"`** (best for migration)
+
+- Don't inject script when no route matches
+- Routes without patterns continue using props
+- **Zero duplication during gradual migration**
+- Perfect for hybrid approach
+
+**`fallback: "always-only"`** (recommended after migration)
+
+- Load only `always` namespaces when no route matches
+- Minimal payload for unmatched routes
+- Best for performance after full migration
+
+**`fallback: "all"`**
+
+- Load entire translation object when no route matches
+- Ensures all translations available everywhere
+- Backwards compatible with prop-based approach
+
+### Migrating from Props to Injection (Zero Duplication)
+
+Use `fallback: "none"` for clean, gradual migration with no wasted bytes:
+
+```typescript
+// Step 1: Enable clientLoad with empty routes
+app.use(i18nPlugin({
+  languages: ["en", "es"],
+  defaultLanguage: "en",
+  localesDir: "./locales",
+  clientLoad: {
+    always: [], // Empty! No automatic loading
+    routes: {}, // Start empty
+    fallback: "none", // 🔑 Key: No injection for unmapped routes
+  },
+}));
+// All routes still use props - no change, no duplication
+```
+
+```typescript
+// Step 2: Migrate one route at a time
+clientLoad: {
+  always: [],
+  routes: {
+    "/indicators/*": ["common", "features.indicators"],  // Migrate this route
+  },
+  fallback: "none",
+}
+
+// For /indicators/* pages:
+export default function IndicatorsRoute() {
+  return <IndicatorsList />;  // Uses useTranslation() - no props!
+}
+
+// For /admin/users (unmigrated):
+export default function AdminRoute({ data }) {
+  return <AdminPanel translationData={data.translationData} />;  // Still uses props
+}
+// Result: Zero duplication! Each route uses one approach.
+```
+
+```typescript
+// Step 3: After migrating all routes, add common to always
+clientLoad: {
+  always: ["common"],           // Now safe to load everywhere
+  routes: {
+    "/indicators/*": ["features.indicators"],
+    "/admin/*": ["features.admin"],
+    // ... all routes mapped
+  },
+  fallback: "always-only",      // Change to always-only
+}
+// All routes now use injection, props completely removed
+```
+
+**Migration benefits:**
+
+- ✅ No duplication at any stage
+- ✅ Migrate route-by-route at your own pace
+- ✅ Test each migration before moving to next
+- ✅ Rollback is easy (just remove route from config)
+- ✅ Performance improvement visible immediately per route
+
+## Usage in Islands (Prop-Based Approach)
+
+If you prefer explicit control or don't use `clientLoad`, islands can still receive translations as props:
 
 ### 1. Pass data from route handler:
 

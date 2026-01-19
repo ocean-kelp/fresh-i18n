@@ -1,7 +1,7 @@
 import { join, relative } from "@std/path";
 import { type Middleware } from "fresh";
 import { translate } from "./translator.ts";
-import type { TranslationState } from "./types.ts";
+import type { ClientLoadConfig, TranslationState } from "./types.ts";
 
 export interface FallbackConfig {
   /**
@@ -91,6 +91,26 @@ export interface I18nOptions {
    * @default false
    */
   showKeysInProd?: boolean;
+  /**
+   * Client-side translation loading configuration.
+   * When enabled, injects only matched namespaces into the client instead of passing all translations via props.
+   *
+   * NOTE: This is about ROUTE MATCHING, not file structure.
+   * A pattern like "/indicators/*" loads "features.indicators.*" which should include
+   * granular files: list.json, edit.json, form.json, validations.json, etc.
+   * Keep translation files fragmented regardless of route patterns!
+   *
+   * @example
+   * clientLoad: {
+   *   always: ["common"],
+   *   routes: {
+   *     "/indicators/*": ["features.indicators"],
+   *     "/admin/*": ["features.admin", "features.users"],
+   *   },
+   *   fallback: "always-only",
+   * }
+   */
+  clientLoad?: ClientLoadConfig;
 }
 
 async function readJsonFile(filePath: string): Promise<Record<string, string>> {
@@ -177,6 +197,181 @@ async function discoverTranslationFiles(
   return files;
 }
 
+/**
+ * Normalizes a URL path by removing trailing slashes (except for root "/").
+ * @param path - The URL path to normalize
+ * @returns The normalized path
+ */
+function normalizeUrlPath(path: string): string {
+  if (path === "/" || !path.endsWith("/")) return path;
+  return path.slice(0, -1);
+}
+
+/**
+ * Matches a URL path against a route pattern with greedy wildcard support.
+ * Pattern wildcards (*) match any remaining path segments.
+ * 
+ * @param urlPath - The URL path to match (e.g., "/indicators/123/edit")
+ * @param pattern - The route pattern (e.g., "/indicators/*")
+ * @returns true if the URL matches the pattern
+ * 
+ * @example
+ * matchRoutePattern("/indicators/123", "/indicators/*") // true
+ * matchRoutePattern("/indicators/123/edit", "/indicators/*") // true
+ * matchRoutePattern("/matrix/indicators/456", "/indicators/*") // false
+ * matchRoutePattern("/matrix/indicators/456", "/matrix/indicators/*") // true
+ */
+function matchRoutePattern(urlPath: string, pattern: string): boolean {
+  // Exact match
+  if (urlPath === pattern) return true;
+
+  // If pattern has wildcard
+  if (pattern.includes("*")) {
+    // Get the static prefix (before the *)
+    const prefix = pattern.substring(0, pattern.indexOf("*"));
+    
+    // URL must start with the prefix
+    if (!urlPath.startsWith(prefix)) return false;
+    
+    // Greedy match - everything after prefix matches
+    return true;
+  }
+
+  // No wildcard, exact match only
+  return false;
+}
+
+/**
+ * Determines which translation namespaces to load based on clientLoad configuration.
+ * @param pathname - The current URL pathname
+ * @param config - The clientLoad configuration
+ * @param isDev - Whether running in development mode
+ * @returns Array of namespace prefixes to load
+ */
+function getClientLoadNamespaces(
+  pathname: string,
+  config: ClientLoadConfig | undefined,
+  isDev: boolean,
+): string[] {
+  if (!config) return []; // No client loading configured
+
+  const normalizedPath = config.ignoreTrailingSlash
+    ? normalizeUrlPath(pathname)
+    : pathname;
+
+  const matchedNamespaces: string[] = [...config.always];
+  const matchedPatterns: string[] = [];
+
+  // Check each route pattern
+  for (const [pattern, namespaces] of Object.entries(config.routes)) {
+    const normalizedPattern = config.ignoreTrailingSlash
+      ? normalizeUrlPath(pattern)
+      : pattern;
+
+    if (matchRoutePattern(normalizedPath, normalizedPattern)) {
+      matchedNamespaces.push(...namespaces);
+      matchedPatterns.push(pattern);
+    }
+  }
+
+  // Warn on overlap in dev mode
+  if (
+    isDev &&
+    config.warnOnOverlap !== false &&
+    matchedPatterns.length > 1
+  ) {
+    console.warn(
+      `⚠️  Multiple clientLoad route patterns matched ${pathname}:`,
+      matchedPatterns,
+    );
+  }
+
+  // If no routes matched, handle fallback
+  if (matchedPatterns.length === 0) {
+    const fallback = config.fallback ?? "always-only";
+    if (fallback === "all") {
+      return []; // Empty array signals "load everything"
+    } else if (fallback === "none") {
+      return ["__SKIP_INJECTION__"]; // Special signal to skip injection entirely
+    }
+    // "always-only" - return only the always namespaces (already in array)
+  }
+
+  return matchedNamespaces;
+}
+
+/**
+ * Extracts translation data for specific namespaces (with prefix matching).
+ * @param allTranslations - Complete translation data object
+ * @param namespaces - Array of namespace prefixes to extract (e.g., ["common", "features.indicators"])
+ * @returns Filtered translation object containing only matched namespaces
+ * 
+ * @example
+ * extractNamespaces(
+ *   { "common.save": "Save", "features.indicators.title": "Indicators" },
+ *   ["common", "features.indicators"]
+ * )
+ * // Returns: { "common.save": "Save", "features.indicators.title": "Indicators" }
+ */
+function extractNamespaces(
+  allTranslations: Record<string, unknown>,
+  namespaces: string[],
+): Record<string, unknown> {
+  if (namespaces.length === 0) {
+    // Empty array means load everything (fallback="all")
+    return allTranslations;
+  }
+
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(allTranslations)) {
+    // Check if key starts with any of the target namespaces
+    const matches = namespaces.some((ns) =>
+      key === ns || key.startsWith(`${ns}.`)
+    );
+
+    if (matches) {
+      result[key] = value;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Injects client-side translation data into HTML response.
+ * @param html - The HTML response body
+ * @param translationData - Translation data to inject
+ * @param locale - Current locale
+ * @param defaultLocale - Default locale
+ * @returns Modified HTML with injected script tag
+ */
+function injectClientTranslations(
+  html: string,
+  translationData: Record<string, unknown>,
+  locale: string,
+  defaultLocale: string,
+): string {
+  // Escape JSON for safe injection (prevent XSS)
+  const jsonString = JSON.stringify({
+    translations: translationData,
+    locale,
+    defaultLocale,
+  }).replace(/</g, "\\u003c").replace(/>/g, "\\u003e");
+
+  const scriptTag = `<script>window.__I18N__=${jsonString};</script>`;
+
+  // Inject before closing </head> tag or at start of <body> if no </head>
+  if (html.includes("</head>")) {
+    return html.replace("</head>", `${scriptTag}</head>`);
+  } else if (html.includes("<body")) {
+    return html.replace(/<body([^>]*)>/, `<body$1>${scriptTag}`);
+  }
+
+  // Fallback: prepend to HTML
+  return scriptTag + html;
+}
+
 function getPreferredLanguage(
   acceptLanguage: string,
   supportedLanguages: string[],
@@ -232,8 +427,7 @@ export const i18nPlugin = <State extends TranslationState = TranslationState>(
     localesDir,
     isProduction,
     fallback,
-    showKeysInProd = false,
-  }: I18nOptions,
+    showKeysInProd = false,    clientLoad,  }: I18nOptions,
 ): Middleware<State> => {
   const fallbackConfig: FallbackConfig = {
     enabled: fallback?.enabled ?? false,
@@ -392,6 +586,56 @@ export const i18nPlugin = <State extends TranslationState = TranslationState>(
     });
 
     const response = await ctx.next() as Response;
+
+    // If clientLoad is configured, inject translations into HTML
+    if (clientLoad && response) {
+      const contentType = response.headers.get("content-type");
+      
+      // Only inject into HTML responses
+      if (contentType?.includes("text/html")) {
+        const isDev = isProduction ? !isProduction() : true;
+        
+        // Determine which namespaces to load
+        const namespacesToLoad = getClientLoadNamespaces(
+          url.pathname,
+          clientLoad,
+          isDev,
+        );
+
+        // Skip injection if fallback is "none" and no routes matched
+        if (
+          namespacesToLoad.length === 1 &&
+          namespacesToLoad[0] === "__SKIP_INJECTION__"
+        ) {
+          return response; // Return response unchanged
+        }
+
+        // Extract only the needed translations
+        const clientTranslations = extractNamespaces(
+          translationData,
+          namespacesToLoad,
+        );
+
+        // Read response body
+        const html = await response.text();
+        
+        // Inject script tag with translations
+        const modifiedHtml = injectClientTranslations(
+          html,
+          clientTranslations,
+          lang || defaultLanguage,
+          defaultLanguage,
+        );
+
+        // Return modified response
+        return new Response(modifiedHtml, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+      }
+    }
+
     return response;
   };
 };
