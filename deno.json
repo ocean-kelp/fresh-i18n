@@ -2,7 +2,10 @@
   "name": "@xiayun/fresh-i18n",
   "version": "0.2.1",
   "license": "MIT",
-  "exports": "./mod.ts",
+  "exports": {
+    ".": "./mod.ts",
+    "./client": "./src/client.ts"
+  },
   "tasks": {
     "test": "deno test --allow-read --allow-env --allow-write",
     "check": "deno check mod.ts",
