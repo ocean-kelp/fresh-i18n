@@ -19,13 +19,6 @@ interface I18nGlobalData {
 }
 
 /**
- * Extend globalThis with i18n data property.
- */
-declare global {
-  var __I18N__: I18nGlobalData | undefined;
-}
-
-/**
  * Hook to access translations in client-side islands.
  * Must be used with the clientLoad configuration in the i18n plugin.
  * 
@@ -57,7 +50,7 @@ export function useTranslation(): (key: string) => string {
     );
   }
 
-  const data = globalThis.__I18N__;
+  const data = (globalThis as unknown as { __I18N__?: I18nGlobalData }).__I18N__;
 
   if (!data) {
     throw new Error(
@@ -99,7 +92,7 @@ export function useLocale(): string {
     );
   }
 
-  const data = globalThis.__I18N__;
+  const data = (globalThis as unknown as { __I18N__?: I18nGlobalData }).__I18N__;
 
   if (!data) {
     throw new Error(
@@ -132,5 +125,5 @@ export function getTranslationData(): I18nGlobalData | undefined {
     return undefined;
   }
 
-  return globalThis.__I18N__;
+  return (globalThis as unknown as { __I18N__?: I18nGlobalData }).__I18N__;
 }
