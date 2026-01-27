@@ -42,12 +42,17 @@ function getGlobalData(): I18nGlobalData | undefined {
   const contextStorage = globalWithI18n[GLOBAL_CONTEXT_KEY];
   
   if (contextStorage && typeof contextStorage === "object" && "getStore" in contextStorage) {
-    const getStore = (contextStorage as { getStore: () => I18nGlobalData | undefined }).getStore;
-    if (typeof getStore === "function") {
-      const contextData = getStore();
-      if (contextData) {
-        return contextData;
+    try {
+      const getStore = (contextStorage as { getStore: () => I18nGlobalData | undefined }).getStore;
+      if (typeof getStore === "function") {
+        const contextData = getStore.call(contextStorage);
+        if (contextData) {
+          return contextData;
+        }
       }
+    } catch {
+      // AsyncLocalStorage not active or not properly initialized
+      // Fall through to check window.__I18N__
     }
   }
 
