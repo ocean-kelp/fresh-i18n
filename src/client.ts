@@ -7,7 +7,11 @@
  * @module
  */
 
-import { translate, type TranslationConfig } from "./translator.ts";
+import {
+  createNamespacedTranslator,
+  translate,
+  type TranslationConfig,
+} from "./translator.ts";
 
 /**
  * Interface for i18n data injected into global scope.
@@ -133,3 +137,5 @@ export function useLocale(): string {
 export function getTranslationData(): I18nGlobalData | undefined {
   return getGlobalData();
 }
+
+export { createNamespacedTranslator };
