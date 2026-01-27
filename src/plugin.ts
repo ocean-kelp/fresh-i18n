@@ -2,7 +2,6 @@ import { join, relative } from "@std/path";
 import { type Middleware } from "fresh";
 import { translate } from "./translator.ts";
 import type { ClientLoadConfig, TranslationState } from "./types.ts";
-import { i18nContext } from "./context.ts";
 
 export interface FallbackConfig {
   /**
@@ -223,27 +222,18 @@ function normalizeUrlPath(path: string): string {
  * matchRoutePattern("/matrix/indicators/456", "/matrix/indicators/*") // true
  */
 function matchRoutePattern(urlPath: string, pattern: string): boolean {
-  // Normalize both by removing trailing slashes for the base comparison
-  const normPath = urlPath.endsWith("/") && urlPath.length > 1 ? urlPath.slice(0, -1) : urlPath;
-  const normPattern = pattern.endsWith("/") && pattern.length > 1 ? pattern.slice(0, -1) : pattern;
-
   // Exact match
-  if (normPath === normPattern) return true;
+  if (urlPath === pattern) return true;
 
   // If pattern has wildcard
   if (pattern.includes("*")) {
     // Get the static prefix (before the *)
     const prefix = pattern.substring(0, pattern.indexOf("*"));
     
-    // If prefix ends with /, check if normPath matches normPrefix
-    if (prefix.endsWith("/")) {
-      const normPrefix = prefix.slice(0, -1);
-      if (normPath === normPrefix) return true;
-    }
-
     // URL must start with the prefix
     if (!urlPath.startsWith(prefix)) return false;
     
+    // Greedy match - everything after prefix matches
     return true;
   }
 
@@ -595,11 +585,7 @@ export const i18nPlugin = <State extends TranslationState = TranslationState>(
       isProduction: isProduction,
     });
 
-    const response = await i18nContext.run({
-      translations: translationData,
-      locale: lang || defaultLanguage,
-      defaultLocale: defaultLanguage,
-    }, () => ctx.next()) as Response;
+    const response = await ctx.next() as Response;
 
     // If clientLoad is configured, inject translations into HTML
     if (clientLoad && response) {
@@ -611,7 +597,7 @@ export const i18nPlugin = <State extends TranslationState = TranslationState>(
         
         // Determine which namespaces to load
         const namespacesToLoad = getClientLoadNamespaces(
-          ctx.state.path || ctx.url.pathname,
+          url.pathname,
           clientLoad,
           isDev,
         );
