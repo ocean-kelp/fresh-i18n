@@ -92,7 +92,6 @@ In production, missing keys fail silently (or show fallback) to keep your UI cle
 
 ## 📖 Learn More
 
-- [Complete Migration Guide (Props → Injection)](./docs/MIGRATION_GUIDE.md)
 - [Nested Structure Patterns](./docs/NESTED_STRUCTURE.md)
 - [Advanced API Reference](./docs/API_REFERENCE.md)
 
