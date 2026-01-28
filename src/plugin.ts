@@ -399,18 +399,17 @@ function getPreferredLanguage(
 }
 
 /**
- * Creates the i18n middleware plugin for Fresh framework.
+ * Create the i18n middleware for Fresh.
  * Automatically detects locale from URL paths and Accept-Language headers,
  * loads translations, and provides them through context state.
- *
- * @template State - Application state type that extends TranslationState
- * @param options - Configuration options for the plugin
- * @returns Fresh middleware function that adds translation functionality to context state
+ * 
+ * @param options - Configuration options for the i18n plugin.
+ * @returns Fresh middleware function
  *
  * @example
  * ```typescript
  * import { App } from "fresh";
- * import { i18nPlugin } from "@xiayun/fresh-i18n";
+ * import { i18n } from "@xiayun/fresh-i18n";
  *
  * const app = new App();
  * app.use(i18nPlugin({
@@ -420,7 +419,7 @@ function getPreferredLanguage(
  * }));
  * ```
  */
-export const i18nPlugin = <State extends TranslationState = TranslationState>(
+export const i18n = <State extends TranslationState = TranslationState>(
   {
     languages,
     defaultLanguage,

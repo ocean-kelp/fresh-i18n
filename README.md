@@ -31,9 +31,9 @@ locales/
 ### 2. Configure `main.ts`
 
 ```typescript
-import { i18nPlugin } from "@xiayun/fresh-i18n";
+import { i18n } from "@xiayun/fresh-i18n";
 
-app.use(i18nPlugin({
+app.use(i18n({
   languages: ["en", "es"],
   defaultLanguage: "en",
   localesDir: "./locales",
