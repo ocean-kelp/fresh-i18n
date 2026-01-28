@@ -596,8 +596,9 @@ export const i18nPlugin = <State extends TranslationState = TranslationState>(
         const isDev = isProduction ? !isProduction() : true;
         
         // Determine which namespaces to load
+        // Use the locale-stripped path for matching
         const namespacesToLoad = getClientLoadNamespaces(
-          url.pathname,
+          ctx.state.path || url.pathname,
           clientLoad,
           isDev,
         );

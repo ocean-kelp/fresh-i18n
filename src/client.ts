@@ -45,16 +45,14 @@ interface I18nGlobalData {
  * ```
  */
 export function useTranslation(): (key: string) => string {
-  if (typeof globalThis === "undefined") {
-    throw new Error(
-      "useTranslation() can only be used client-side (in islands). " +
-        "For server-side routes, use state.t instead.",
-    );
-  }
-
   const data = (globalThis as unknown as { __I18N__?: I18nGlobalData }).__I18N__;
 
   if (!data) {
+    // If on server (SSR), return a passthrough translator to avoid crashing
+    if (typeof document === "undefined") {
+      return (key: string) => `[${key}]`;
+    }
+
     throw new Error(
       "Translation data not found. " +
         "Make sure you have configured clientLoad in your i18n plugin options. " +
@@ -87,16 +85,14 @@ export function useTranslation(): (key: string) => string {
  * ```
  */
 export function useLocale(): string {
-  if (typeof globalThis === "undefined") {
-    throw new Error(
-      "useLocale() can only be used client-side (in islands). " +
-        "For server-side routes, use state.locale instead.",
-    );
-  }
-
   const data = (globalThis as unknown as { __I18N__?: I18nGlobalData }).__I18N__;
 
   if (!data) {
+    // Return a dummy locale during SSR
+    if (typeof document === "undefined") {
+      return "en"; 
+    }
+
     throw new Error(
       "Translation data not found. " +
         "Make sure you have configured clientLoad in your i18n plugin options.",

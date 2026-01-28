@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.10] - 2026-01-28
+
+### Fixed
+
+- **SSR Safety for Hooks** - Updated `useTranslation()` and `useLocale()` to be safe during server-side rendering
+  - Returns fallback translator/locale instead of throwing "Translation data not found" error during SSR
+  - Allows islands to render partially on server and hydrate fully in browser
+- **Route Matching for clientLoad** - Fixed matching logic to account for locale prefixes (/es, /en, etc.)
+  - Patterns like `/matrix/*` now correctly match URLs like `/es/matrix/...`
+  - Uses the locale-stripped path from context state for pattern matching
+
 ## [0.2.7] - 2026-01-27
 
 ### Fixed
