@@ -9,7 +9,7 @@ Implemented automatic client-side translation injection based on route patterns,
 ### Core Implementation
 
 - **src/types.ts** - Added `ClientLoadConfig` interface with route pattern support
-- **src/plugin.ts** - Added route matching, namespace extraction, and HTML injection logic
+- **src/middleware.ts** - Added route matching, namespace extraction, and HTML injection logic
 - **src/client.ts** - Created client-side hooks (`useTranslation`, `useLocale`)
 - **mod.ts** - Exported `ClientLoadConfig` type
 
@@ -199,7 +199,7 @@ The pattern controls **WHEN** to load, not **HOW** to organize files.
 **Modified:**
 
 - `src/types.ts` (+75 lines) - ClientLoadConfig type
-- `src/plugin.ts` (+200 lines) - Matching + injection logic
+- `src/middleware.ts` (+200 lines) - Matching + injection logic
 - `mod.ts` (+1 line) - Export ClientLoadConfig
 - `README.md` (+150 lines) - Documentation
 
